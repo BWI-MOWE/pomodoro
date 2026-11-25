@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mowe — Pomodoro</title>
+    <style>
+        /* =====================================================================
+           1. SKRIFTTYPER (MOWE Designmanual + Office XML-fontScheme)
+              Understøtter både lokalt installerede fonte og ./fonts/-mappen
+              ved hosting på subdomæne — 100 % uden eksterne CDN-kald.
+           ===================================================================== */
+
+        /* Optima nova LT Pro — Primær display-skrifttype */
+        @font-face {
+            font-family: 'Optima nova LT Pro';
+            src:
+                local('Optima nova LT Pro Regular'),
+                local('Optima nova LT Regular'),
+                local('Optima nova LT Pro'),
+                local('Optima'),
+                url('./fonts/Optima nova LT Regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Optima nova LT Pro';
+            src:
+                local('Optima nova LT Pro Bold'),
+                local('Optima nova LT Bold'),
+                local('Optima Bold'),
+                url('./fonts/Optima nova LT Bold.otf') format('opentype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Optima nova LT Pro';
+            src:
+                local('Optima nova LT Pro Italic'),
+                local('Optima nova LT Italic'),
+                local('Optima Italic'),
+                url('./fonts/Optima nova LT Italic.otf') format('opentype');
+            font-weight: 400;
+            font-style: italic;
+            font-display: swap;
+        }
+
+        /* Libertinus Sans — Humanistisk fallback */
+        @font-face {
+            font-family: 'Libertinus Sans';
+            src:
+                local('Libertinus Sans Regular'),
+                local('Libertinus Sans'),
+                url('./fonts/LibertinusSans-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Libertinus Sans';
+            src:
+                local('Libertinus Sans Bold'),
+                url('./fonts/LibertinusSans-Bold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        /* Open Sans — Brødtekst, metadata og kontrolpanel */
+        @font-face {
+            font-family: 'Open Sans';
+            src:
+                local('Open Sans Light'),
+                url('./fonts/OpenSans-Light.ttf') format('truetype');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Open Sans';
+            src:
+                local('Open Sans Regular'),
+                local('Open Sans'),
+                url('./fonts/OpenSans-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Open Sans';
+            src:
+                local('Open Sans Bold'),
+                url('./fonts/OpenSans-Bold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        /* =====================================================================
+           2. OFFICIELLE MOWE-FARVEVARIABLER & TEMAKONTRAST
+              - Neutral (før 08:45 / efter afslutning): Sand (#F3F0EE) + kulsort (#151515)
+              - Pause (5 min): Blå (#9CB1BE) + kulsort (#151515)
+              - Arbejde (25 min) kan vælges mellem:
+                  * Dyb rød (#7A2320, standard) -> varm sand (#F3F0EE) forgrund
+                  * Mørk tegl (#783111, XML accent4) -> varm sand (#F3F0EE) forgrund
+                  * XML Tegl (#AC4F1F, XML accent1) -> kulsort (#151515) forgrund
+           ===================================================================== */
+        :root {
+            /* MOWE kernefarver */
+            --mowe-black: #151515;
+            --mowe-white: #FFFFFF;
+            --mowe-sand: #F3F0EE;
+            --mowe-blue: #9CB1BE;
+            --mowe-red-deep: #7A2320;
+            --mowe-tegl-dark: #783111;
+            --mowe-tegl: #AC4F1F;
+            --mowe-olive: #7A8E60;
+
+            /* Typografi */
+            --font-display: 'Optima nova LT Pro', 'Optima nova LT', 'Optima', 'Libertinus Sans', 'Segoe UI Semibold', sans-serif;
+            --font-ui: 'Open Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+            /* Blød 1.2s farveovergang */
+            --theme-transition: 1.2s ease;
+
+            /* Aktive tema-tokens (default: Neutral sand) */
+            --bg-current: var(--mowe-sand);
+            --fg-primary: var(--mowe-black);
+            --fg-secondary: rgba(21, 21, 21, 0.78);
+            --fg-muted: rgba(21, 21, 21, 0.64);
+            --line-subtle: rgba(21, 21, 21, 0.24);
+            --line-strong: var(--mowe-black);
+            --track-bg: rgba(21, 21, 21, 0.18);
+            --timeline-empty-work: rgba(21, 21, 21, 0.08);
+            --timeline-empty-break: rgba(21, 21, 21, 0.03);
+            --timeline-done-work: rgba(21, 21, 21, 0.36);
+            --timeline-done-break: rgba(21, 21, 21, 0.18);
+            --tag-bg: rgba(21, 21, 21, 0.07);
+            --btn-hover-bg: var(--mowe-black);
+            --btn-hover-fg: var(--mowe-sand);
+
+            /* Kontrolpanel (altid skarpt, roligt sand-på-kulsort) */
+            --panel-bg: rgba(243, 240, 238, 0.95);
+            --panel-border: rgba(21, 21, 21, 0.26);
+            --panel-divider: rgba(21, 21, 21, 0.16);
+        }
+
+        /* NEUTRAL: Sand (#F3F0EE) med kulsort (#151515) */
+        body[data-theme="neutral"] {
+            --bg-current: var(--mowe-sand);
+            --fg-primary: var(--mowe-black);
+            --fg-secondary: rgba(21, 21, 21, 0.78);
+            --fg-muted: rgba(21, 21, 21, 0.64);
+            --line-subtle: rgba(21, 21, 21, 0.24);
+            --line-strong: var(--mowe-black);
+            --track-bg: rgba(21, 21, 21, 0.18);
+            --timeline-empty-work: rgba(21, 21, 21, 0.08);
+            --timeline-empty-break: rgba(21, 21, 21, 0.03);
+            --timeline-done-work: rgba(21, 21, 21, 0.36);
+            --timeline-done-break: rgba(21, 21, 21, 0.18);
+            --tag-bg: rgba(21, 21, 21, 0.06);
+            --btn-hover-bg: var(--mowe-black);
+            --btn-hover-fg: var(--mowe-sand);
+        }
+
+        /* PAUSE: Blå (#9CB1BE) med kulsort (#151515) */
+        body[data-theme="break"] {
+            --bg-current: var(--mowe-blue);
+            --fg-primary: var(--mowe-black);
+            --fg-secondary: rgba(21, 21, 21, 0.82);
+            --fg-muted: rgba(21, 21, 21, 0.70);
+            --line-subtle: rgba(21, 21, 21, 0.24);
+            --line-strong: var(--mowe-black);
+            --track-bg: rgba(21, 21, 21, 0.22);
+            --timeline-empty-work: rgba(21, 21, 21, 0.10);
+            --timeline-empty-break: rgba(21, 21, 21, 0.04);
+            --timeline-done-work: rgba(21, 21, 21, 0.42);
+            --timeline-done-break: rgba(21, 21, 21, 0.22);
+            --tag-bg: rgba(21, 21, 21, 0.08);
+            --btn-hover-bg: var(--mowe-black);
+            --btn-hover-fg: var(--mowe-sand);
+        }
+
+        /* ARBEJDE (Standard): Dyb rød (#7A2320) med varm sand (#F3F0EE) */
+        body[data-theme="work"][data-work-color="red-deep"] {
+            --bg-current: var(--mowe-red-deep);
+            --fg-primary: var(--mowe-sand);
+            --fg-secondary: rgba(243, 240, 238, 0.84);
+            --fg-muted: rgba(243, 240, 238, 0.70);
+            --line-subtle: rgba(243, 240, 238, 0.28);
+            --line-strong: var(--mowe-sand);
+            --track-bg: rgba(243, 240, 238, 0.24);
+            --timeline-empty-work: rgba(243, 240, 238, 0.11);
+            --timeline-empty-break: rgba(243, 240, 238, 0.04);
+            --timeline-done-work: rgba(243, 240, 238, 0.48);
+            --timeline-done-break: rgba(243, 240, 238, 0.24);
+            --tag-bg: rgba(243, 240, 238, 0.10);
+            --btn-hover-bg: var(--mowe-sand);
+            --btn-hover-fg: var(--mowe-red-deep);
+        }
+
+        /* ARBEJDE (Valg 2): Mørk tegl (#783111) med varm sand (#F3F0EE) */
+        body[data-theme="work"][data-work-color="tegl-dark"] {
+            --bg-current: var(--mowe-tegl-dark);
+            --fg-primary: var(--mowe-sand);
+            --fg-secondary: rgba(243, 240, 238, 0.84);
+            --fg-muted: rgba(243, 240, 238, 0.70);
+            --line-subtle: rgba(243, 240, 238, 0.28);
+            --line-strong: var(--mowe-sand);
+            --track-bg: rgba(243, 240, 238, 0.24);
+            --timeline-empty-work: rgba(243, 240, 238, 0.11);
+            --timeline-empty-break: rgba(243, 240, 238, 0.04);
+            --timeline-done-work: rgba(243, 240, 238, 0.48);
+            --timeline-done-break: rgba(243, 240, 238, 0.24);
+            --tag-bg: rgba(243, 240, 238, 0.10);
+            --btn-hover-bg: var(--mowe-sand);
+            --btn-hover-fg: var(--mowe-tegl-dark);
+        }
+
+        /* ARBEJDE (Valg 3): XML Tegl (#AC4F1F) med kulsort (#151515) */
+        body[data-theme="work"][data-work-color="tegl"] {
+            --bg-current: var(--mowe-tegl);
+            --fg-primary: var(--mowe-black);
+            --fg-secondary: rgba(21, 21, 21, 0.86);
+            --fg-muted: rgba(21, 21, 21, 0.76);
+            --line-subtle: rgba(21, 21, 21, 0.28);
+            --line-strong: var(--mowe-black);
+            --track-bg: rgba(21, 21, 21, 0.26);
+            --timeline-empty-work: rgba(21, 21, 21, 0.12);
+            --timeline-empty-break: rgba(21, 21, 21, 0.05);
+            --timeline-done-work: rgba(21, 21, 21, 0.44);
+            --timeline-done-break: rgba(21, 21, 21, 0.24);
+            --tag-bg: rgba(21, 21, 21, 0.08);
+            --btn-hover-bg: var(--mowe-black);
+            --btn-hover-fg: var(--mowe-sand);
+        }
+
+        /* =====================================================================
+           3. FULL-BLEED KANT-TIL-KANT GRUNDLAYOUT (100vw x 100vh · 0px HJØRNER)
+           ===================================================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            border-radius: 0px;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-current);
+            color: var(--fg-primary);
+            font-family: var(--font-ui);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+            transition: background-color var(--theme-transition), color var(--theme-transition);
+        }
+
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: "tnum" 1;
+        }
+
+        /* Ultradiskret inline SVG-papirtekstur (~2.5% opacity) */
+        .paper-grain {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.025;
+        }
+
+        /* Fuldskærmslærred uden rammer eller overflødig topbar */
+        .screen-canvas {
+            position: relative;
+            z-index: 2;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: clamp(20px, 3.2vh, 42px) clamp(24px, 4.2vw, 64px) clamp(16px, 2.4vh, 30px);
+        }
+
+        /* =====================================================================
+           4. ØVERSTE HJØRNER: MOWE SVG-LOGO (VENSTRE) & ANALOGT UR (HØJRE)
+           ===================================================================== */
+        .top-row {
+            width: 100%;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            flex-shrink: 0;
+            padding-bottom: clamp(12px, 1.8vh, 20px);
+            border-bottom: 1px solid var(--line-subtle);
+            transition: border-color var(--theme-transition);
+        }
+
+        .brand-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: clamp(5px, 0.8vh, 9px);
+        }
+
+        .brand-logo {
+            color: var(--fg-primary);
+            transition: color var(--theme-transition);
+        }
+
+        .brand-logo svg {
+            display: block;
+            height: clamp(28px, 3.6vw, 46px);
+            width: auto;
+        }
+
+        .brand-tagline {
+            font-family: var(--font-display);
+            font-weight: 400;
+            font-size: clamp(0.60rem, 0.84vw, 0.78rem);
+            line-height: 1;
+            letter-spacing: 0.30em;
+            text-transform: uppercase;
+            color: var(--fg-secondary);
+            transition: color var(--theme-transition);
+        }
+
+        /* Skarp 0px status-indikator når man er i Forhåndsvisning eller Demo 8s */
+        .view-badge {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-top: 4px;
+            padding: 4px 8px 4px 10px;
+            border: 1px solid var(--line-strong);
+            background: var(--tag-bg);
+            color: var(--fg-primary);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: border-color var(--theme-transition), color var(--theme-transition);
+        }
+
+        .view-badge.is-visible {
+            display: inline-flex;
+        }
+
+        .view-badge-btn {
+            border: 1px solid var(--line-strong);
+            background: var(--fg-primary);
+            color: var(--bg-current);
+            padding: 2px 8px;
+            font-family: var(--font-ui);
+            font-size: 0.69rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: none;
+            cursor: pointer;
+            transition: opacity 0.2s ease, background-color var(--theme-transition), color var(--theme-transition);
+        }
+
+        .view-badge-btn:hover {
+            opacity: 0.82;
+        }
+
+        /* Sekundært minimalistisk analogt SVG-ur + digital HH:MM og dansk dato */
+        .clock-block {
+            display: flex;
+            align-items: center;
+            gap: clamp(12px, 1.4vw, 18px);
+            margin-left: auto;
+        }
+
+        .clock-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        .clock-digital {
+            font-family: var(--font-ui);
+            font-weight: 300;
+            font-size: clamp(1.25rem, 1.9vw, 1.75rem);
+            line-height: 1.05;
+            letter-spacing: 0.02em;
+            color: var(--fg-primary);
+            transition: color var(--theme-transition);
+        }
+
+        .clock-date {
+            font-family: var(--font-ui);
+            font-weight: 400;
+            font-size: clamp(0.75rem, 0.95vw, 0.90rem);
+            letter-spacing: 0.02em;
+            color: var(--fg-secondary);
+            transition: color var(--theme-transition);
+        }
+
+        /* Kun den analoge urskive er rund */
+        .analog-clock {
+            width: clamp(52px, 4.5vw, 70px);
+            height: clamp(52px, 4.5vw, 70px);
+            flex-shrink: 0;
+            display: block;
+            border-radius: 50%;
+            color: var(--fg-primary);
+            transition: color var(--theme-transition);
+        }
+
+        /* =====================================================================
+           5. CENTRUM — PRIMÆRT FOKUS: GIGANTISK DIGITAL NEDTÆLLING
+           ===================================================================== */
+        .hero-center {
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+            max-width: 1360px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: clamp(6px, 1.2vh, 18px) 0;
+        }
+
+        /* Diskret, skarp 0px knap til lyd-aktivering indtil brugeren klikker */
+        .audio-unlock-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: clamp(8px, 1.5vh, 18px);
+            padding: 6px 14px;
+            border: 1px solid var(--line-strong);
+            background: transparent;
+            color: var(--fg-primary);
+            font-family: var(--font-ui);
+            font-size: clamp(0.74rem, 0.90vw, 0.85rem);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color var(--theme-transition);
+        }
+
+        .audio-unlock-btn:hover {
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-fg);
+        }
+
+        .audio-unlock-btn.is-hidden {
+            display: none;
+        }
+
+        .active-stage {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .active-stage.is-hidden {
+            display: none;
+        }
+
+        .phase-heading {
+            margin: 0;
+            font-family: var(--font-display);
+            font-weight: 400;
+            font-size: clamp(1.3rem, 2.6vw, 2.5rem);
+            line-height: 1.12;
+            letter-spacing: 0.28em;
+            text-indent: 0.28em;
+            text-transform: uppercase;
+            color: var(--fg-primary);
+            transition: color var(--theme-transition);
+        }
+
+        .phase-interval {
+            margin-top: clamp(6px, 1vh, 13px);
+            font-family: var(--font-ui);
+            font-weight: 400;
+            font-size: clamp(0.92rem, 1.35vw, 1.28rem);
+            letter-spacing: 0.025em;
+            color: var(--fg-secondary);
+            transition: color var(--theme-transition);
+        }
+
+        /* Gigantisk digital nedtælling — hvert ciffer har fast bredde (0.60em) */
+        .countdown-clock {
+            display: inline-flex;
+            align-items: baseline;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-weight: 400;
+            font-size: clamp(5.8rem, min(22vw, 31vh), 18.5rem);
+            line-height: 0.95;
+            color: var(--fg-primary);
+            margin: clamp(8px, 2vh, 24px) 0 clamp(12px, 2.4vh, 28px);
+            will-change: transform;
+            transition: color var(--theme-transition);
+        }
+
+        /* Skalerer rent ved HH:MM:SS før kl. 08:45 */
+        .countdown-clock.is-hms {
+            font-size: clamp(3.2rem, min(13.2vw, 22vh), 11.8rem);
+        }
+
+        .cd-digit {
+            display: inline-block;
+            width: 0.60em;
+            text-align: center;
+        }
+
+        .cd-colon {
+            display: inline-block;
+            width: 0.28em;
+            text-align: center;
+            transform: translateY(-0.04em);
+        }
+
+        @keyframes shiftPulse {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.022); }
+            100% { transform: scale(1); }
+        }
+
+        .countdown-clock.is-pulsing {
+            animation: shiftPulse 1.05s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Skarp 0px horisontal fremdriftslinje (2px høj) */
+        .progress-track {
+            width: min(680px, 78vw);
+            height: 2px;
+            background-color: var(--track-bg);
+            position: relative;
+            overflow: hidden;
+            transition: background-color var(--theme-transition);
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 100%;
+            background-color: var(--fg-primary);
+            transition: width 0.25s linear, background-color var(--theme-transition);
+        }
+
+        .next-status {
+            margin: clamp(12px, 2vh, 24px) 0 0;
+            font-family: var(--font-ui);
+            font-weight: 400;
+            font-size: clamp(0.94rem, 1.38vw, 1.30rem);
+            letter-spacing: 0.02em;
+            color: var(--fg-secondary);
+            transition: color var(--theme-transition);
+        }
+
+        /* Afsluttet / Weekend-tilstand på Neutral sand (#F3F0EE) */
+        .finished-stage {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(12px, 2vh, 22px);
+            max-width: 920px;
+        }
+
+        .finished-stage.is-visible {
+            display: flex;
+        }
+
+        .finished-rule {
+            width: 64px;
+            height: 1px;
+            background-color: var(--fg-primary);
+            transition: background-color var(--theme-transition);
+        }
+
+        .finished-main {
+            margin: 0;
+            font-family: var(--font-display);
+            font-weight: 400;
+            font-size: clamp(2.6rem, 6.4vw, 5.4rem);
+            line-height: 1.08;
+            color: var(--fg-primary);
+            transition: color var(--theme-transition);
+        }
+
+        .finished-sub {
+            margin: 0;
+            font-family: var(--font-ui);
+            font-weight: 400;
+            font-size: clamp(0.94rem, 1.35vw, 1.22rem);
+            letter-spacing: 0.02em;
+            color: var(--fg-secondary);
+            transition: color var(--theme-transition);
+        }
+
+        /* =====================================================================
+           6. NEDERST: ARKITEKTONISK DAGSTIDSLINJE (0px BLOKKE, 1px LINJER)
+           ===================================================================== */
+        .day-timeline {
+            width: 100%;
+            flex-shrink: 0;
+            padding-top: clamp(8px, 1.4vh, 16px);
+            padding-bottom: 104px;
+            transition: padding-bottom 0.28s ease;
+        }
+
+        .day-timeline.panel-is-hidden {
+            padding-bottom: 0;
+        }
+
+        .timeline-strip {
+            position: relative;
+            width: 100%;
+            height: 10px;
+            display: flex;
+            align-items: stretch;
+            gap: 2px;
+        }
+
+        .timeline-block {
+            position: relative;
+            height: 100%;
+            background-color: var(--timeline-empty-work);
+            border: 1px solid var(--line-subtle);
+            overflow: hidden;
+            transition: border-color 0.25s ease, background-color var(--theme-transition);
+        }
+
+        .timeline-block.is-break {
+            background-color: var(--timeline-empty-break);
+        }
+
+        .timeline-block.is-active-block {
+            border-color: var(--line-strong);
+        }
+
+        .timeline-block-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.25s linear, background-color var(--theme-transition);
+        }
+
+        .timeline-block-fill.is-done-work {
+            background-color: var(--timeline-done-work);
+        }
+
+        .timeline-block-fill.is-done-break {
+            background-color: var(--timeline-done-break);
+        }
+
+        .timeline-block-fill.is-current {
+            background-color: var(--fg-primary);
+        }
+
+        .timeline-now-marker {
+            position: absolute;
+            top: -5px;
+            bottom: -5px;
+            width: 1px;
+            background-color: var(--fg-primary);
+            transform: translateX(-50%);
+            pointer-events: none;
+            opacity: 0;
+            transition: left 0.25s linear, opacity 0.25s ease, background-color var(--theme-transition);
+        }
+
+        .timeline-now-marker.is-visible {
+            opacity: 1;
+        }
+
+        .timeline-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 7px;
+            font-family: var(--font-ui);
+            font-size: clamp(0.71rem, 0.86vw, 0.81rem);
+            font-weight: 400;
+            letter-spacing: 0.04em;
+            color: var(--fg-muted);
+            transition: color var(--theme-transition);
+        }
+
+        /* =====================================================================
+           7. STRAMT ARKITEKTONISK KONTROLPANEL (0px KANTER · 1px RAMMER)
+              To kompakte, overskuelige rækker i MOWE-sand (#F3F0EE) med
+              kulsort (#151515) skrift, så det altid er skarpt og ryddeligt.
+           ===================================================================== */
+        .control-dock {
+            position: fixed;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            max-width: calc(100vw - 20px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .control-dock.is-hidden {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+            pointer-events: none;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            max-width: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .control-panel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: stretch;
+            flex-wrap: nowrap;
+            min-height: 32px;
+        }
+
+        .control-row + .control-row {
+            border-top: 1px solid var(--panel-divider);
+        }
+
+        .ctrl-group {
+            display: inline-flex;
+            align-items: stretch;
+            border-right: 1px solid var(--panel-border);
+            flex-shrink: 0;
+        }
+
+        .ctrl-group:last-child {
+            border-right: none;
+        }
+
+        .ctrl-label {
+            display: inline-flex;
+            align-items: center;
+            padding: 0 9px;
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: rgba(21, 21, 21, 0.58);
+            background: rgba(21, 21, 21, 0.04);
+            border-right: 1px solid var(--panel-divider);
+            white-space: nowrap;
+        }
+
+        .ctrl-btn,
+        .ctrl-select {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 10px;
+            border: none;
+            border-right: 1px solid var(--panel-divider);
+            background: transparent;
+            color: var(--mowe-black);
+            font-family: var(--font-ui);
+            font-size: 0.74rem;
+            font-weight: 400;
+            letter-spacing: 0.015em;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background-color 0.16s ease, color 0.16s ease;
+        }
+
+        .ctrl-group > .ctrl-btn:last-child,
+        .ctrl-group > .ctrl-select:last-child {
+            border-right: none;
+        }
+
+        .ctrl-btn:hover,
+        .ctrl-select:hover {
+            background: rgba(21, 21, 21, 0.09);
+        }
+
+        .ctrl-btn:focus-visible,
+        .ctrl-select:focus-visible {
+            outline: 1px solid var(--mowe-black);
+            outline-offset: -1px;
+        }
+
+        .ctrl-btn.is-active {
+            background: var(--mowe-black);
+            color: var(--mowe-sand);
+            font-weight: 600;
+        }
+
+        .ctrl-btn.is-active:hover {
+            background: var(--mowe-red-deep);
+            color: var(--mowe-white);
+        }
+
+        .ctrl-select {
+            padding-right: 24px;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23151515' stroke-width='2' stroke-linecap='square'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+        }
+
+        .ctrl-select option {
+            background: var(--mowe-sand);
+            color: var(--mowe-black);
+        }
+
+        /* Skarp 0px status-indikator for lyd */
+        .sound-square {
+            width: 7px;
+            height: 7px;
+            background: var(--mowe-red-deep);
+            border: 1px solid var(--mowe-black);
+            flex-shrink: 0;
+        }
+
+        .sound-square.is-on {
+            background: var(--mowe-olive);
+            border-color: var(--mowe-black);
+        }
+
+        .sound-square.is-muted {
+            background: transparent;
+            border-color: rgba(21, 21, 21, 0.45);
+        }
+
+        .teams-note {
+            padding: 2px 10px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            color: var(--mowe-black);
+            font-family: var(--font-ui);
+            font-size: 0.69rem;
+            letter-spacing: 0.02em;
+            text-align: center;
+        }
+
+        /* Næsten usynlig hjørneknap nederst til højre når panelet er skjult */
+        .reveal-corner {
+            position: fixed;
+            right: 8px;
+            bottom: 8px;
+            z-index: 35;
+            padding: 12px;
+            display: none;
+        }
+
+        .reveal-corner.is-active {
+            display: block;
+        }
+
+        .reveal-btn {
+            padding: 6px 11px;
+            border: 1px solid var(--mowe-black);
+            background: var(--panel-bg);
+            color: var(--mowe-black);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            opacity: 0.02;
+            transition: opacity 0.25s ease;
+        }
+
+        .reveal-corner:hover .reveal-btn,
+        .reveal-btn:focus-visible {
+            opacity: 0.94;
+        }
+
+        /* Skarp 0px toast-notifikation (ingen browser-alert) */
+        .toast {
+            position: fixed;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-6px);
+            z-index: 50;
+            padding: 8px 16px;
+            border: 1px solid var(--mowe-black);
+            background: var(--mowe-sand);
+            color: var(--mowe-black);
+            font-family: var(--font-ui);
+            font-size: 0.77rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.24s ease, transform 0.24s ease;
+        }
+
+        .toast.is-visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* =====================================================================
+           8. RESPONSIVE TILPASNINGER
+           ===================================================================== */
+        @media (max-height: 760px) {
+            .day-timeline {
+                padding-bottom: 96px;
+            }
+            .countdown-clock {
+                font-size: clamp(4.8rem, min(20vw, 27vh), 14.5rem);
+            }
+            .countdown-clock.is-hms {
+                font-size: clamp(2.8rem, min(12vw, 20vh), 9.0rem);
+            }
+        }
+
+        @media (max-width: 720px) {
+            .screen-canvas {
+                padding: 16px 16px 12px;
+            }
+            .countdown-clock {
+                font-size: clamp(4.2rem, 21vw, 7.8rem);
+            }
+            .countdown-clock.is-hms {
+                font-size: clamp(2.4rem, 12vw, 4.8rem);
+            }
+            .phase-heading {
+                letter-spacing: 0.18em;
+                text-indent: 0.18em;
+            }
+            .day-timeline {
+                padding-bottom: 106px;
+            }
+        }
+    </style>
+</head>
+<body data-theme="neutral" data-work-color="red-deep">
+
+    <!-- Ultradiskret inline SVG-papirtekstur (~2.5% opacity) -->
+    <svg class="paper-grain" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <filter id="mowe-grain">
+            <feTurbulence type="fractalNoise" baseFrequency="0.80" numOctaves="3" stitchTiles="stitch" />
+            <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <rect width="100%" height="100%" filter="url(#mowe-grain)" />
+    </svg>
+
+    <!-- Skjult filvælger til brugerens egen ringelyd (.mp3 / .wav) -->
+    <input type="file" id="custom-audio-input" accept=".mp3,.wav,.ogg,.m4a,audio/*" style="display:none;" onchange="handleCustomAudioUpload(event)">
+
+    <!-- =================================================================
+         FULD KANT-TIL-KANT FARVEFLADE (100vw x 100vh)
+         ================================================================= -->
+    <div class="screen-canvas">
+
+        <!-- ØVERSTE HJØRNER: EKSAKT INLINE MOWE SVG-LOGO (VENSTRE) & ANALOGT UR (HØJRE) -->
+        <header class="top-row">
+            <div class="brand-block">
+                <div class="brand-logo" aria-label="mowe">
+                    <svg width="400" height="79" viewBox="0 0 400 79" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M400.001 32.365C400.001 33.7859 399.843 35.9962 399.527 37.7329L398.58 38.6801C386.265 38.5223 372.372 38.3644 364.004 38.3644H345.69C345.533 39.9432 345.533 41.5219 345.533 42.9428C345.533 59.0464 354.69 72.3082 372.53 72.3082C382.002 72.3082 390.844 68.5191 396.054 62.0461L397.632 62.8355C396.843 65.3615 396.211 69.3085 396.054 71.203C389.738 75.7815 379.634 78.7812 369.372 78.7812C346.322 78.7812 331.008 64.4143 331.008 40.101C331.008 17.2087 344.743 0 368.267 0C390.528 0 400.001 14.9984 400.001 32.365ZM386.581 32.365C386.581 20.9978 383.897 5.36786 367.951 5.36786C352.321 5.36786 346.638 21.3135 346.006 32.6808H363.531C370.162 32.6808 381.529 32.5229 386.581 32.365Z" fill="currentColor"/>
+<path d="M324.083 2.37044C313.979 25.4206 299.612 61.7326 294.402 76.731C293.454 76.5732 290.77 76.4153 289.192 76.4153C287.613 76.4153 285.403 76.5732 284.14 76.731C281.298 66.3111 273.088 41.0506 265.352 18.9476H264.721C258.879 34.4197 249.091 62.0484 244.196 76.731C243.091 76.5732 240.249 76.4153 238.986 76.4153C237.408 76.4153 235.197 76.5732 233.934 76.731C230.619 64.7323 216.883 26.21 207.727 2.37044L208.2 2.05469C210.41 2.21256 213.41 2.37044 214.989 2.37044C217.357 2.37044 220.673 2.37044 222.725 2.05469C227.777 20.2107 235.987 44.5239 242.46 62.0484H242.933C248.301 47.6815 259.195 15.7901 262.668 2.21256C264.247 2.37044 266.141 2.52832 267.562 2.52832C268.983 2.52832 271.351 2.37044 272.772 2.21256C277.824 20.0528 286.034 44.5239 292.507 62.0484H292.981C298.664 47.8393 310.347 16.4216 314.136 2.05469C315.873 2.21256 317.452 2.37044 318.557 2.37044C320.294 2.37044 322.188 2.21256 323.609 2.05469L324.083 2.37044Z" fill="currentColor"/>
+<path d="M-0.00069302 76.4147C10.1035 53.3645 24.4704 17.0525 29.6804 2.05412C30.6277 2.21199 33.3116 2.36987 34.8904 2.36987C36.4692 2.36987 38.6795 2.21199 39.9425 2.05412C42.7843 12.4741 50.9939 37.7346 58.73 59.8375L59.3615 59.8375C65.203 44.3655 74.9914 16.7368 79.8856 2.05412C80.9908 2.212 83.8326 2.36987 85.0956 2.36987C86.6744 2.36987 88.8847 2.212 90.1477 2.05412C93.4632 14.0529 107.199 52.5751 116.355 76.4147L115.882 76.7305C113.672 76.5726 110.672 76.4147 109.093 76.4147C106.725 76.4147 103.409 76.4147 101.357 76.7305C96.3049 58.5745 88.0953 34.2613 81.6223 16.7368L81.1487 16.7368C75.7808 31.1037 64.8872 62.9951 61.4139 76.5726C59.8351 76.4147 57.9406 76.2568 56.5197 76.2568C55.0988 76.2568 52.7306 76.4147 51.3097 76.5726C46.2576 58.7324 38.0479 34.2612 31.5749 16.7368L31.1013 16.7368C25.4177 30.9458 13.7347 62.3636 9.94562 76.7305C8.20897 76.5726 6.63019 76.4147 5.52504 76.4147C3.78838 76.4147 1.89385 76.5726 0.472942 76.7305L-0.00069302 76.4147Z" fill="currentColor"/>
+<path d="M200.803 39.4695C200.803 62.3619 185.647 78.7812 162.123 78.7812C133.705 78.7812 123.285 59.0464 123.285 39.4695C123.285 17.3666 137.178 0 162.123 0C187.857 0 200.803 15.9457 200.803 39.4695ZM186.279 39.4695C186.279 23.8396 180.437 5.36786 162.123 5.36786C143.651 5.36786 137.968 23.8396 137.968 39.4695C137.968 54.3101 143.651 73.4133 162.123 73.4133C180.437 73.4133 186.279 54.9416 186.279 39.4695Z" fill="currentColor"/>
+<path d="M386.547 29.5547L388.062 30.3125V34.8593L377.453 32.5859C377.453 32.5859 383.516 32.5859 385.031 31.8281C386.547 31.0703 386.547 29.5547 386.547 29.5547Z" fill="currentColor"/>
+<path d="M293.51 60.7754L294.197 63.8066H291.166L292.035 60.7754C292.035 60.7754 292.342 61.7537 292.745 61.7463C293.147 61.7389 293.51 60.7754 293.51 60.7754Z" fill="currentColor"/>
+<path d="M243.45 60.7754L244.137 63.8066H241.105L241.974 60.7754C241.974 60.7754 242.282 61.7537 242.684 61.7463C243.087 61.7389 243.45 60.7754 243.45 60.7754Z" fill="currentColor"/>
+<path d="M59.7992 58.6543L60.4863 61.6855H57.4551L58.324 58.6543C58.324 58.6543 58.6313 59.6326 59.0338 59.6252C59.4364 59.6178 59.7992 58.6543 59.7992 58.6543Z" fill="currentColor"/>
+<path d="M263.902 21.0684L262.871 16.5215L267.418 16.5215L266.115 21.0684C266.115 21.0684 265.654 19.6009 265.05 19.612C264.446 19.6232 263.902 21.0684 263.902 21.0684Z" fill="currentColor"/>
+<path d="M80.2807 19.0352L79.25 14.4883L83.7969 14.4883L82.4935 19.0352C82.4935 19.0352 82.0326 17.5677 81.4287 17.5788C80.8249 17.59 80.2807 19.0352 80.2807 19.0352Z" fill="currentColor"/>
+<path d="M30.2045 19.0352L29.1739 14.4883L33.7207 14.4883L32.4173 19.0352C32.4173 19.0352 31.9564 17.5677 31.3526 17.5788C30.7487 17.59 30.2045 19.0352 30.2045 19.0352Z" fill="currentColor"/>
+</svg>
+                </div>
+                <div class="brand-tagline">RUM FOR SAMARBEJDE</div>
+
+                <!-- Vises kun når der forhåndsvises en skærm eller køres Demo 8s -->
+                <div id="view-badge" class="view-badge" role="status">
+                    <span id="view-badge-text">Forhåndsvisning</span>
+                    <button type="button" class="view-badge-btn" onclick="setViewMode('live')">Tilbage til Live</button>
+                </div>
+            </div>
+
+            <!-- Sekundært minimalistisk analogt SVG-ur + digital HH:MM og dansk dato -->
+            <aside class="clock-block" aria-label="Aktuelt klokkeslæt">
+                <div class="clock-text">
+                    <div id="clock-digital" class="clock-digital tabular-nums">00:00</div>
+                    <div id="clock-date" class="clock-date">&mdash;</div>
+                </div>
+
+                <svg viewBox="0 0 100 100" class="analog-clock" role="img" aria-label="Analogt ur">
+                    <circle cx="50" cy="50" r="47.5" fill="none" stroke="currentColor" stroke-width="1" />
+                    <g id="analog-ticks"></g>
+                    <line id="hand-hour" x1="50" y1="54" x2="50" y2="25" stroke="currentColor" stroke-width="2.1" stroke-linecap="butt" />
+                    <line id="hand-minute" x1="50" y1="55" x2="50" y2="14" stroke="currentColor" stroke-width="1.35" stroke-linecap="butt" />
+                    <line id="hand-second" x1="50" y1="58" x2="50" y2="10" stroke="currentColor" stroke-width="0.75" stroke-linecap="butt" />
+                    <circle cx="50" cy="50" r="2" fill="currentColor" />
+                </svg>
+            </aside>
+        </header>
+
+        <!-- CENTRUM: PRIMÆR DIGITAL NEDTÆLLING TIL STORSKÆRMENE -->
+        <main class="hero-center">
+            <button type="button" id="audio-unlock-btn" class="audio-unlock-btn" onclick="activateAudio(true)">
+                <span>Aktiver ringeklokke</span>
+            </button>
+
+            <!-- Aktiv visning (Afventer start, Arbejde, Pause) -->
+            <section id="active-stage" class="active-stage">
+                <h1 id="phase-heading" class="phase-heading">ARBEJDE</h1>
+                <div id="phase-interval" class="phase-interval">08:45 &ndash; 09:10 &middot; Pas 1 af 15</div>
+
+                <!-- Hvert ciffer renderes i sit eget fastbredde <span> (0.60em) -->
+                <div id="countdown-clock" class="countdown-clock" aria-live="off"></div>
+
+                <!-- Skarp 0px horisontal fremdriftslinje (2px høj) -->
+                <div class="progress-track" aria-hidden="true">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+
+                <p id="next-status" class="next-status">Næste: Pause kl. 09:10</p>
+            </section>
+
+            <!-- Afsluttet / Weekend-visning på Neutral sand (#F3F0EE) -->
+            <section id="finished-stage" class="finished-stage" aria-live="polite">
+                <h1 id="finished-heading" class="phase-heading">POMODORO AFSLUTTET</h1>
+                <div class="finished-rule" aria-hidden="true"></div>
+                <p id="finished-main" class="finished-main">Tak for i dag</p>
+                <p id="finished-sub" class="finished-sub">Næste opstart kl. 08:45</p>
+            </section>
+        </main>
+
+        <!-- NEDERST: ARKITEKTONISK DAGSTIDSLINJE (08:45–16:00 / FREDAG 11:10) -->
+        <footer id="day-timeline" class="day-timeline">
+            <div id="timeline-strip" class="timeline-strip"></div>
+            <div class="timeline-meta tabular-nums">
+                <span id="timeline-start">08:45</span>
+                <span id="timeline-summary">Dagens pas</span>
+                <span id="timeline-end">16:00</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- =================================================================
+         STRAMT ARKITEKTONISK KONTROLPANEL TIL TEAMS (0px · 1px RAMMER)
+         ================================================================= -->
+    <div id="control-dock" class="control-dock">
+        <nav class="control-panel" aria-label="Kontrolpanel">
+            <!-- RÆKKE 1: VISNING, TIDSPLAN & ARBEJDSFARVE -->
+            <div class="control-row">
+                <div class="ctrl-group" role="group" aria-label="Visning">
+                    <span class="ctrl-label">Visning</span>
+                    <button type="button" class="ctrl-btn is-active" data-view="live" onclick="setViewMode('live')">Live</button>
+                    <button type="button" class="ctrl-btn" data-view="work" onclick="setViewMode('work')">Arbejde</button>
+                    <button type="button" class="ctrl-btn" data-view="break" onclick="setViewMode('break')">Pause</button>
+                    <button type="button" class="ctrl-btn" data-view="before" onclick="setViewMode('before')">Før start</button>
+                    <button type="button" class="ctrl-btn" data-view="after" onclick="setViewMode('after')">Afsluttet</button>
+                    <button type="button" class="ctrl-btn" data-view="demo8s" onclick="setViewMode('demo8s')" title="8-sekunders live cyklus mellem Arbejde og Pause med ringeklokke">Demo 8s</button>
+                </div>
+
+                <div class="ctrl-group">
+                    <label for="schedule-select" class="ctrl-label">Tidsplan</label>
+                    <select id="schedule-select" class="ctrl-select" onchange="onScheduleChange(this.value)" title="Automatisk registrerer selv fredage (11:10)">
+                        <option value="auto">Automatisk</option>
+                        <option value="normal">Normal (16:00)</option>
+                        <option value="friday">Fredag (11:10)</option>
+                    </select>
+                </div>
+
+                <div class="ctrl-group">
+                    <label for="work-color-select" class="ctrl-label">Arbejdsfarve</label>
+                    <select id="work-color-select" class="ctrl-select" onchange="onWorkColorChange(this.value)" title="Vælg rød/tegl nuance til arbejdspas">
+                        <option value="red-deep">Dyb rød</option>
+                        <option value="tegl-dark">Mørk tegl</option>
+                        <option value="tegl">XML Tegl</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- RÆKKE 2: LYD, KLOKKEPROFIL, EGEN LYD & SKÆRMSTYRING -->
+            <div class="control-row">
+                <div class="ctrl-group">
+                    <button type="button" id="btn-sound" class="ctrl-btn" onclick="toggleSound()" title="Aktivér eller slå ringeklokke fra (genvej: M)">
+                        <span id="sound-square" class="sound-square"></span>
+                        <span id="btn-sound-label">Aktiver lyd</span>
+                    </button>
+
+                    <label for="bell-profile-select" class="ctrl-label">Klokke</label>
+                    <select id="bell-profile-select" class="ctrl-select" onchange="onBellProfileChange(this.value)" title="Vælg ringeklokkens klangprofil (~4 sek.)">
+                        <option value="brass">Messingklokke (~4,2 sek.)</option>
+                        <option value="desk">Klar bordklokke (~4,0 sek.)</option>
+                        <option value="twotone">Blød to-tone klang (~4,5 sek.)</option>
+                    </select>
+
+                    <button type="button" class="ctrl-btn" onclick="testBell()" title="Afspil valgte ringeklokke nu">Test klokke</button>
+                    <button type="button" class="ctrl-btn" onclick="triggerCustomAudioPicker()" title="Indlæs din egen .mp3 eller .wav lydfil til denne session">Egen lyd (.mp3/.wav)</button>
+                </div>
+
+                <div class="ctrl-group">
+                    <button type="button" id="btn-fullscreen" class="ctrl-btn" onclick="toggleFullscreen()" title="Fuld skærm (genvej: F)">
+                        <span id="btn-fullscreen-label">Fuld skærm (F)</span>
+                    </button>
+                    <button type="button" class="ctrl-btn" onclick="setPanelHidden(true)" title="Skjul panelet helt til ren Teams-deling (genvej: H)">Skjul panel (H)</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="teams-note">Husk &lsquo;Medtag computerlyd&rsquo; i Teams</div>
+    </div>
+
+    <!-- Næsten usynlig hjørneknap nederst til højre ved mouseover når panelet er skjult -->
+    <div id="reveal-corner" class="reveal-corner">
+        <button type="button" class="reveal-btn" onclick="setPanelHidden(false)" title="Vis kontrolpanel igen (genvej: H)">
+            Vis panel (H)
+        </button>
+    </div>
+
+    <!-- Diskret 0px toast-besked (ingen browser-alert) -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        /* =====================================================================
+           1. TIDSPLANER (START KL. 08:45 · 25 MIN ARBEJDE / 5 MIN PAUSE)
+              - Normal dag (Man–Tors): 15 arbejdspas (14x25m + 15. pas 15:45–16:00)
+              - Fredag (automatisk ved getDay() === 5): 5 arbejdspas á 25m med
+                4 pauser á 5m imellem -> slutter kl. 11:10
+           ===================================================================== */
+        const START_SEC = 8 * 3600 + 45 * 60; // 08:45:00
+        const WORK_SEC = 25 * 60;             // 25 minutter
+        const BREAK_SEC = 5 * 60;             // 5 minutter
+        const CYCLE_SEC = WORK_SEC + BREAK_SEC;
+
+        const STORAGE_WORK_COLOR = 'mowe_pomodoro_work_color_v3';
+        const STORAGE_BELL_PROFILE = 'mowe_pomodoro_bell_profile_v3';
+
+        const DA_WEEKDAYS = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
+        const DA_MONTHS = [
+            'januar', 'februar', 'marts', 'april', 'maj', 'juni',
+            'juli', 'august', 'september', 'oktober', 'november', 'december'
+        ];
+
+        /**
+         * Bygger samtlige arbejds- og pauseblokke for enten fredagsplan eller normal dag.
+         * @param {boolean} isFriday
+         */
+        function buildSchedulePlan(isFriday) {
+            const blocks = [];
+
+            if (isFriday) {
+                const totalPasses = 5;
+                for (let i = 0; i < totalPasses; i++) {
+                    const workStart = START_SEC + i * CYCLE_SEC;
+                    const workEnd = workStart + WORK_SEC;
+                    blocks.push({
+                        id: `W${i + 1}`,
+                        type: 'WORK',
+                        passNum: i + 1,
+                        totalPasses,
+                        startSec: workStart,
+                        endSec: workEnd
+                    });
+                    if (i < totalPasses - 1) {
+                        blocks.push({
+                            id: `B${i + 1}`,
+                            type: 'BREAK',
+                            passNum: i + 1,
+                            totalPasses,
+                            startSec: workEnd,
+                            endSec: workEnd + BREAK_SEC
+                        });
+                    }
+                }
+                return {
+                    key: 'FRIDAY',
+                    isFriday: true,
+                    totalPasses,
+                    startSec: START_SEC,
+                    endSec: 11 * 3600 + 10 * 60, // 11:10:00
+                    blocks
+                };
+            }
+
+            // Normal dag (mandag–torsdag): 14 x (25m + 5m) + pas 15 (15:45–16:00, 15m)
+            const totalPasses = 15;
+            for (let i = 0; i < totalPasses; i++) {
+                const isLast = i === totalPasses - 1;
+                const workStart = START_SEC + i * CYCLE_SEC;
+                const workEnd = isLast ? 16 * 3600 : workStart + WORK_SEC;
+                blocks.push({
+                    id: `W${i + 1}`,
+                    type: 'WORK',
+                    passNum: i + 1,
+                    totalPasses,
+                    startSec: workStart,
+                    endSec: workEnd
+                });
+                if (!isLast) {
+                    blocks.push({
+                        id: `B${i + 1}`,
+                        type: 'BREAK',
+                        passNum: i + 1,
+                        totalPasses,
+                        startSec: workEnd,
+                        endSec: workEnd + BREAK_SEC
+                    });
+                }
+            }
+            return {
+                key: 'NORMAL',
+                isFriday: false,
+                totalPasses,
+                startSec: START_SEC,
+                endSec: 16 * 3600, // 16:00:00
+                blocks
+            };
+        }
+
+        const PLAN_NORMAL = buildSchedulePlan(false);
+        const PLAN_FRIDAY = buildSchedulePlan(true);
+
+        /* =====================================================================
+           2. APPLIKATIONSTILSTAND & DOM-REFERENCER
+           ===================================================================== */
+        let audioCtx = null;
+        let audioUnlocked = false;
+        let soundEnabled = false;
+
+        let scheduleMode = 'auto';      // 'auto' | 'normal' | 'friday'
+        let viewMode = 'live';          // 'live' | 'work' | 'break' | 'before' | 'after' | 'demo8s'
+        let viewModeStartedAt = Date.now();
+        let workColor = 'red-deep';     // 'red-deep' | 'tegl-dark' | 'tegl'
+        let bellProfile = 'brass';      // 'brass' | 'desk' | 'twotone' | 'custom'
+
+        // Valgfri egen lydfil (indlæst lokalt i sessionen)
+        let customAudioUrl = null;
+        let customAudioName = '';
+        let activeCustomAudioEl = null;
+
+        let renderedTimelineKey = null;
+
+        // Sporing af forrige blok + senest afspillede overgang (forhindrer dobbelt-ringning)
+        let prevState = null;           // { key: string, type: 'BEFORE'|'WORK'|'BREAK'|'AFTER'|'WEEKEND', allowBell: boolean }
+        let lastRungTransitionKey = null;
+
+        let lastRenderedCountdown = '';
+        let panelHidden = false;
+        let toastTimer = null;
+
+        const DEMO_STEP_MS = 8000;
+
+        // DOM-elementer
+        const viewBadgeEl = document.getElementById('view-badge');
+        const viewBadgeTextEl = document.getElementById('view-badge-text');
+
+        const clockDigitalEl = document.getElementById('clock-digital');
+        const clockDateEl = document.getElementById('clock-date');
+        const analogTicksEl = document.getElementById('analog-ticks');
+        const handHourEl = document.getElementById('hand-hour');
+        const handMinuteEl = document.getElementById('hand-minute');
+        const handSecondEl = document.getElementById('hand-second');
+
+        const audioUnlockBtn = document.getElementById('audio-unlock-btn');
+        const activeStageEl = document.getElementById('active-stage');
+        const finishedStageEl = document.getElementById('finished-stage');
+
+        const phaseHeadingEl = document.getElementById('phase-heading');
+        const phaseIntervalEl = document.getElementById('phase-interval');
+        const countdownClockEl = document.getElementById('countdown-clock');
+        const progressFillEl = document.getElementById('progress-fill');
+        const nextStatusEl = document.getElementById('next-status');
+
+        const finishedHeadingEl = document.getElementById('finished-heading');
+        const finishedMainEl = document.getElementById('finished-main');
+        const finishedSubEl = document.getElementById('finished-sub');
+
+        const dayTimelineEl = document.getElementById('day-timeline');
+        const timelineStripEl = document.getElementById('timeline-strip');
+        const timelineStartEl = document.getElementById('timeline-start');
+        const timelineSummaryEl = document.getElementById('timeline-summary');
+        const timelineEndEl = document.getElementById('timeline-end');
+
+        const controlDockEl = document.getElementById('control-dock');
+        const revealCornerEl = document.getElementById('reveal-corner');
+        const soundSquareEl = document.getElementById('sound-square');
+        const btnSoundLabelEl = document.getElementById('btn-sound-label');
+        const workColorSelectEl = document.getElementById('work-color-select');
+        const bellProfileSelectEl = document.getElementById('bell-profile-select');
+        const customAudioInputEl = document.getElementById('custom-audio-input');
+        const btnFullscreenLabelEl = document.getElementById('btn-fullscreen-label');
+        const toastEl = document.getElementById('toast');
+        const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
+
+        let timelineDomBlocks = [];
+        let timelineNowMarkerEl = null;
+
+        /* =====================================================================
+           3. INDLÆS GEMTE PRÆFERENCER (ARBEJDSFARVE & KLOKKEPROFIL)
+           ===================================================================== */
+        function loadPreferences() {
+            try {
+                const savedColor = localStorage.getItem(STORAGE_WORK_COLOR);
+                if (savedColor === 'red-deep' || savedColor === 'tegl-dark' || savedColor === 'tegl') {
+                    workColor = savedColor;
+                }
+                const savedBell = localStorage.getItem(STORAGE_BELL_PROFILE);
+                if (savedBell === 'brass' || savedBell === 'desk' || savedBell === 'twotone') {
+                    bellProfile = savedBell;
+                }
+            } catch (_) {
+                // localStorage utilgængelig — fortsæt med standardværdier
+            }
+
+            document.body.setAttribute('data-work-color', workColor);
+            workColorSelectEl.value = workColor;
+            bellProfileSelectEl.value = bellProfile;
+        }
+
+        function onWorkColorChange(value) {
+            if (value !== 'red-deep' && value !== 'tegl-dark' && value !== 'tegl') return;
+            workColor = value;
+            document.body.setAttribute('data-work-color', workColor);
+            try {
+                localStorage.setItem(STORAGE_WORK_COLOR, workColor);
+            } catch (_) {}
+
+            const names = {
+                'red-deep': 'Arbejdsfarve: Dyb rød (#7A2320)',
+                'tegl-dark': 'Arbejdsfarve: Mørk tegl (#783111)',
+                'tegl': 'Arbejdsfarve: XML Tegl (#AC4F1F)'
+            };
+            showToast(names[workColor]);
+        }
+
+        /* =====================================================================
+           4. AKUSTISK ~4 SEKUNDERS RINGEKLOKKE (WEB AUDIO API + EGEN LYDFIL)
+              - Blød filt-kølle anslagsrampe (18–26 ms) så ingen forskrækkes
+              - Fyldige klokke-overtoner + 1.4 Hz akustisk svævning for varme
+              - Varmt lowpass-filter der blødt dæmper diskanten under udklingen
+              - Diskret rum-refleksion (tidlig akustisk efterklang)
+           ===================================================================== */
+        function ensureAudioContext() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) {
+                    showToast('Lyd understøttes ikke i denne browser.');
+                    return false;
+                }
+                if (!audioCtx) {
+                    audioCtx = new AudioCtx();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                audioUnlocked = true;
+                return true;
+            } catch (err) {
+                console.error('Web Audio API fejl:', err);
+                showToast('Kunne ikke aktivere lyd.');
+                return false;
+            }
+        }
+
+        /**
+         * Opretter et blødt, varmt udgangstrin med lowpass-filter + diskrete
+         * tidlige rumrefleksioner, så klokken lyder naturlig i et mødelokale.
+         */
+        function createAcousticBellBus(startTime, durationSec, cutoffStartHz, cutoffEndHz, masterLevel) {
+            const busInput = audioCtx.createGain();
+            busInput.gain.setValueAtTime(1.0, startTime);
+
+            // Varmt lowpass-filter: blødt åbent ved anslaget, dæmpes naturligt under udklingen
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.Q.setValueAtTime(0.7, startTime);
+            filter.frequency.setValueAtTime(cutoffStartHz, startTime);
+            filter.frequency.exponentialRampToValueAtTime(cutoffEndHz, startTime + durationSec);
+
+            // Master-envelope med fuld udkling til stilhed uden klik
+            const master = audioCtx.createGain();
+            master.gain.setValueAtTime(masterLevel, startTime);
+            master.gain.setValueAtTime(masterLevel, startTime + durationSec * 0.78);
+            master.gain.exponentialRampToValueAtTime(0.0001, startTime + durationSec + 0.12);
+
+            busInput.connect(filter);
+            filter.connect(master);
+            master.connect(audioCtx.destination);
+
+            // To meget bløde tidlige refleksioner (rumklang) for organisk fylde
+            const reflections = [
+                { delay: 0.048, gain: 0.14 },
+                { delay: 0.105, gain: 0.08 }
+            ];
+            reflections.forEach((ref) => {
+                const d = audioCtx.createDelay(0.25);
+                d.delayTime.setValueAtTime(ref.delay, startTime);
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(ref.gain, startTime);
+                filter.connect(d);
+                d.connect(g);
+                g.connect(master);
+            });
+
+            return busInput;
+        }
+
+        /**
+         * Anslår én organisk klokketone med filt-kølle attack, 1.4 Hz svævning
+         * og naturligt afstemte klokke-overtoner.
+         */
+        function triggerBellVoice(destination, startTime, freqHz, attackSec, decaySec, partials, beatHz, levelScale) {
+            // Let svævnings-par på grundtonen (~1.4 Hz) giver autentisk messing-varme
+            const pair = [
+                { f: freqHz, amp: 0.56 * levelScale },
+                { f: freqHz + beatHz, amp: 0.44 * levelScale }
+            ];
+
+            pair.forEach((p) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(p.f, startTime);
+
+                gain.gain.setValueAtTime(0.0001, startTime);
+                gain.gain.linearRampToValueAtTime(p.amp, startTime + attackSec);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startTime + decaySec);
+
+                osc.connect(gain);
+                gain.connect(destination);
+                osc.start(startTime);
+                osc.stop(startTime + decaySec + 0.08);
+            });
+
+            // Øvrige klokke-overtoner (harmoniske + bløde metalliske partialer)
+            partials.forEach((part) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freqHz * part.ratio, startTime);
+
+                const pAttack = part.attack || attackSec;
+                const pDur = part.dur;
+                const pAmp = part.amp * levelScale;
+
+                gain.gain.setValueAtTime(0.0001, startTime);
+                gain.gain.linearRampToValueAtTime(pAmp, startTime + pAttack);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startTime + pDur);
+
+                osc.connect(gain);
+                gain.connect(destination);
+                osc.start(startTime);
+                osc.stop(startTime + pDur + 0.08);
+            });
+        }
+
+        /**
+         * Profil 1 (Standard): Messingklokke (~4,2 sek.)
+         * Varm, fyldig D5 (~587.33 Hz) messing-/tempelklokke med sub-resonans,
+         * 26 ms blødt filt-kølle anslag og rolig 4,2 sekunders udkling.
+         */
+        function playBrassBell() {
+            const t0 = audioCtx.currentTime + 0.02;
+            const totalDur = 4.2;
+            const bus = createAcousticBellBus(t0, totalDur, 3100, 680, 0.34);
+
+            triggerBellVoice(
+                bus,
+                t0,
+                587.33, // D5
+                0.026,  // 26 ms blødt filt-kølle anslag
+                totalDur,
+                [
+                    { ratio: 0.500, amp: 0.22, dur: 3.40, attack: 0.038 }, // Varm sub-resonans (D4)
+                    { ratio: 2.000, amp: 0.28, dur: 2.85, attack: 0.022 }, // Oktav (fylde)
+                    { ratio: 2.0024, amp: 0.14, dur: 2.65, attack: 0.024 }, // Svævning i oktav
+                    { ratio: 2.756, amp: 0.11, dur: 1.55, attack: 0.018 }, // Klassisk messingklokke-partial
+                    { ratio: 3.000, amp: 0.07, dur: 1.25, attack: 0.018 }, // Blød kvint-overtone
+                    { ratio: 4.070, amp: 0.045, dur: 0.72, attack: 0.014 } // Diskret klarhed ved anslag
+                ],
+                1.38,
+                1.0
+            );
+        }
+
+        /**
+         * Profil 2: Klar bordklokke (~4,0 sek.)
+         * Lysere og tydeligere G5 (~783.99 Hz) ringeklokke med autentiske
+         * klokke-overtoner og blødt 18 ms anslag — skærer rent gennem Teams-lyd.
+         */
+        function playDeskBell() {
+            const t0 = audioCtx.currentTime + 0.02;
+            const totalDur = 4.0;
+            const bus = createAcousticBellBus(t0, totalDur, 4400, 1050, 0.30);
+
+            triggerBellVoice(
+                bus,
+                t0,
+                783.99, // G5
+                0.018,  // 18 ms rent, men ikke skarpt anslag
+                totalDur,
+                [
+                    { ratio: 0.500, amp: 0.12, dur: 2.90, attack: 0.028 }, // Diskret kropsvarme (G4)
+                    { ratio: 2.000, amp: 0.26, dur: 2.50, attack: 0.016 }, // Oktav
+                    { ratio: 2.756, amp: 0.18, dur: 1.70, attack: 0.014 }, // Tydelig bordklokke-partial
+                    { ratio: 4.070, amp: 0.09, dur: 0.92, attack: 0.012 }, // Klokke-glans
+                    { ratio: 5.404, amp: 0.04, dur: 0.44, attack: 0.010 }  // Let metallisk anslag
+                ],
+                1.45,
+                1.0
+            );
+        }
+
+        /**
+         * Profil 3: Blød to-tone klang (~4,5 sek.)
+         * Rolig skandinavisk pauselyd/klokkespil: C5 -> G5 (420 ms mellemrum),
+         * der klinger harmonisk ud sammen over ca. 4,5 sekunder.
+         */
+        function playTwoToneBell() {
+            const t0 = audioCtx.currentTime + 0.02;
+            const totalDur = 4.5;
+            const bus = createAcousticBellBus(t0, totalDur, 3400, 740, 0.31);
+
+            // Første klokketone: C5 (523.25 Hz)
+            triggerBellVoice(
+                bus,
+                t0,
+                523.25,
+                0.025,
+                3.85,
+                [
+                    { ratio: 0.500, amp: 0.16, dur: 3.10, attack: 0.035 },
+                    { ratio: 2.000, amp: 0.24, dur: 2.40, attack: 0.020 },
+                    { ratio: 2.756, amp: 0.08, dur: 1.25, attack: 0.018 },
+                    { ratio: 3.000, amp: 0.07, dur: 1.15, attack: 0.018 }
+                ],
+                1.35,
+                0.88
+            );
+
+            // Anden klokketone: G5 (783.99 Hz) 420 ms senere -> klinger ud til ~4,5 sek.
+            triggerBellVoice(
+                bus,
+                t0 + 0.42,
+                783.99,
+                0.024,
+                4.08,
+                [
+                    { ratio: 0.500, amp: 0.14, dur: 3.20, attack: 0.032 },
+                    { ratio: 2.000, amp: 0.22, dur: 2.55, attack: 0.020 },
+                    { ratio: 2.756, amp: 0.09, dur: 1.35, attack: 0.018 },
+                    { ratio: 4.070, amp: 0.035, dur: 0.60, attack: 0.015 }
+                ],
+                1.42,
+                0.92
+            );
+        }
+
+        /**
+         * Afspiller den aktuelt valgte ringeklokke (indbygget Web Audio-profil eller egen lydfil).
+         */
+        function playSelectedBell() {
+            if (bellProfile === 'custom' && customAudioUrl) {
+                try {
+                    if (activeCustomAudioEl) {
+                        activeCustomAudioEl.pause();
+                        activeCustomAudioEl.currentTime = 0;
+                    }
+                    activeCustomAudioEl = new Audio(customAudioUrl);
+                    activeCustomAudioEl.volume = 0.88;
+                    activeCustomAudioEl.play().catch((err) => {
+                        console.warn('Kunne ikke afspille egen lydfil:', err);
+                        showToast('Klik på "Aktiver lyd" for at tillade lydafspilning.');
+                    });
+                    return;
+                } catch (err) {
+                    console.error('Fejl ved egen lydfil:', err);
+                }
+            }
+
+            if (!ensureAudioContext()) return;
+
+            if (bellProfile === 'desk') {
+                playDeskBell();
+            } else if (bellProfile === 'twotone') {
+                playTwoToneBell();
+            } else {
+                playBrassBell();
+            }
+        }
+
+        function activateAudio(playConfirmation) {
+            if (ensureAudioContext()) {
+                soundEnabled = true;
+                updateSoundUI();
+                if (playConfirmation) {
+                    playSelectedBell();
+                    showToast("Lyd: Til · Husk 'Medtag computerlyd' i Teams");
+                }
+            }
+        }
+
+        function toggleSound() {
+            if (!audioUnlocked || !soundEnabled) {
+                activateAudio(true);
+            } else {
+                soundEnabled = false;
+                updateSoundUI();
+                showToast('Ringeklokke slået fra');
+            }
+        }
+
+        function testBell() {
+            if (!audioUnlocked) {
+                activateAudio(false);
+            }
+            playSelectedBell();
+            pulseCountdown();
+
+            const labels = {
+                brass: 'Tester: Messingklokke (~4,2 sek.)',
+                desk: 'Tester: Klar bordklokke (~4,0 sek.)',
+                twotone: 'Tester: Blød to-tone klang (~4,5 sek.)',
+                custom: `Tester egen lyd: ${customAudioName || 'lydfil'}`
+            };
+            showToast(labels[bellProfile] || 'Tester ringeklokke');
+        }
+
+        function onBellProfileChange(value) {
+            bellProfile = value;
+            if (value === 'brass' || value === 'desk' || value === 'twotone') {
+                try {
+                    localStorage.setItem(STORAGE_BELL_PROFILE, value);
+                } catch (_) {}
+            }
+            if (!audioUnlocked) {
+                activateAudio(false);
+            }
+            playSelectedBell();
+            showToast(`Valgt klokke: ${bellProfileSelectEl.options[bellProfileSelectEl.selectedIndex].text}`);
+        }
+
+        function triggerCustomAudioPicker() {
+            customAudioInputEl.value = '';
+            customAudioInputEl.click();
+        }
+
+        function handleCustomAudioUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            try {
+                if (customAudioUrl) {
+                    URL.revokeObjectURL(customAudioUrl);
+                }
+                customAudioUrl = URL.createObjectURL(file);
+                customAudioName = file.name.length > 22
+                    ? `${file.name.slice(0, 19)}…`
+                    : file.name;
+
+                // Opret eller opdatér valgmuligheden i klokke-dropdown'en
+                let customOpt = bellProfileSelectEl.querySelector('option[value="custom"]');
+                if (!customOpt) {
+                    customOpt = document.createElement('option');
+                    customOpt.value = 'custom';
+                    bellProfileSelectEl.appendChild(customOpt);
+                }
+                customOpt.textContent = `Egen: ${customAudioName}`;
+                bellProfileSelectEl.value = 'custom';
+                bellProfile = 'custom';
+
+                if (!audioUnlocked) {
+                    activateAudio(false);
+                }
+                soundEnabled = true;
+                updateSoundUI();
+                playSelectedBell();
+                showToast(`Egen lyd indlæst: ${customAudioName}`);
+            } catch (err) {
+                console.error('Kunne ikke indlæse lydfil:', err);
+                showToast('Kunne ikke indlæse den valgte lydfil.');
+            }
+        }
+
+        function updateSoundUI() {
+            if (soundEnabled) {
+                audioUnlockBtn.classList.add('is-hidden');
+                soundSquareEl.className = 'sound-square is-on';
+                btnSoundLabelEl.textContent = 'Lyd: Til';
+            } else if (!audioUnlocked) {
+                audioUnlockBtn.classList.remove('is-hidden');
+                soundSquareEl.className = 'sound-square';
+                btnSoundLabelEl.textContent = 'Aktiver lyd';
+            } else {
+                audioUnlockBtn.classList.add('is-hidden');
+                soundSquareEl.className = 'sound-square is-muted';
+                btnSoundLabelEl.textContent = 'Lyd: Fra';
+            }
+        }
+
+        /* =====================================================================
+           5. MINIMALISTISK ANALOGT SVG-UR (1px RING, 12 MARKERINGER)
+              Bruger currentColor så visere og skive følger temaets kontrast.
+           ===================================================================== */
+        function initAnalogClock() {
+            const ns = 'http://www.w3.org/2000/svg';
+            analogTicksEl.innerHTML = '';
+
+            for (let i = 0; i < 12; i++) {
+                const isQuarter = i % 3 === 0;
+                const tick = document.createElementNS(ns, 'line');
+                tick.setAttribute('x1', '50');
+                tick.setAttribute('y1', '6');
+                tick.setAttribute('x2', '50');
+                tick.setAttribute('y2', isQuarter ? '13.5' : '10.5');
+                tick.setAttribute('stroke', 'currentColor');
+                tick.setAttribute('stroke-width', isQuarter ? '1.35' : '0.85');
+                tick.setAttribute('transform', `rotate(${i * 30} 50 50)`);
+                analogTicksEl.appendChild(tick);
+            }
+        }
+
+        function updateCornerClock(now) {
+            const h = now.getHours();
+            const m = now.getMinutes();
+            const s = now.getSeconds();
+
+            const secDeg = s * 6;
+            const minDeg = m * 6 + s * 0.1;
+            const hourDeg = (h % 12) * 30 + m * 0.5 + s * (0.5 / 60);
+
+            handHourEl.setAttribute('transform', `rotate(${hourDeg} 50 50)`);
+            handMinuteEl.setAttribute('transform', `rotate(${minDeg} 50 50)`);
+            handSecondEl.setAttribute('transform', `rotate(${secDeg} 50 50)`);
+
+            clockDigitalEl.textContent = `${pad2(h)}:${pad2(m)}`;
+            clockDateEl.textContent = `${DA_WEEKDAYS[now.getDay()]} ${now.getDate()}. ${DA_MONTHS[now.getMonth()]}`;
+        }
+
+        /* =====================================================================
+           6. FASTBREDDE-CIFRE I NEDTÆLLINGSURET (0.60em PR. CIFFER)
+           ===================================================================== */
+        function renderCountdown(formattedText) {
+            if (formattedText === lastRenderedCountdown) return;
+            lastRenderedCountdown = formattedText;
+
+            countdownClockEl.classList.toggle('is-hms', formattedText.length > 5);
+            countdownClockEl.innerHTML = '';
+
+            for (let i = 0; i < formattedText.length; i++) {
+                const ch = formattedText[i];
+                const span = document.createElement('span');
+                span.className = ch === ':' ? 'cd-colon' : 'cd-digit';
+                span.textContent = ch;
+                countdownClockEl.appendChild(span);
+            }
+        }
+
+        function pulseCountdown() {
+            countdownClockEl.classList.remove('is-pulsing');
+            void countdownClockEl.offsetWidth;
+            countdownClockEl.classList.add('is-pulsing');
+        }
+
+        /* =====================================================================
+           7. ARKITEKTONISK DAGSTIDSLINJE NEDERST
+           ===================================================================== */
+        function renderDayTimeline(plan) {
+            if (renderedTimelineKey === plan.key) return;
+            renderedTimelineKey = plan.key;
+
+            timelineStripEl.innerHTML = '';
+            timelineDomBlocks = [];
+
+            plan.blocks.forEach((blk) => {
+                const seg = document.createElement('div');
+                seg.className = `timeline-block ${blk.type === 'BREAK' ? 'is-break' : ''}`;
+                seg.style.flexGrow = String(blk.endSec - blk.startSec);
+                seg.title = `${blk.type === 'WORK' ? `Arbejde (Pas ${blk.passNum})` : 'Pause'}: ${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)}`;
+
+                const fill = document.createElement('div');
+                fill.className = 'timeline-block-fill';
+                seg.appendChild(fill);
+
+                timelineStripEl.appendChild(seg);
+                timelineDomBlocks.push({ blk, seg, fill });
+            });
+
+            timelineNowMarkerEl = document.createElement('div');
+            timelineNowMarkerEl.className = 'timeline-now-marker';
+            timelineStripEl.appendChild(timelineNowMarkerEl);
+
+            timelineStartEl.textContent = formatHHMM(plan.startSec);
+            timelineEndEl.textContent = formatHHMM(plan.endSec);
+        }
+
+        function updateDayTimeline(plan, secOfDay, isWeekend) {
+            if (isWeekend) {
+                timelineSummaryEl.textContent = 'Weekend · Næste opstart mandag kl. 08:45';
+                if (timelineNowMarkerEl) timelineNowMarkerEl.classList.remove('is-visible');
+                timelineDomBlocks.forEach(({ seg, fill }) => {
+                    seg.classList.remove('is-active-block');
+                    fill.style.width = '0%';
+                    fill.className = 'timeline-block-fill';
+                });
+                return;
+            }
+
+            const totalSpan = plan.endSec - plan.startSec;
+            let pct = 0;
+            if (secOfDay >= plan.endSec) {
+                pct = 100;
+            } else if (secOfDay > plan.startSec) {
+                pct = ((secOfDay - plan.startSec) / totalSpan) * 100;
+            }
+
+            timelineSummaryEl.textContent = plan.isFriday
+                ? `Fredagsplan · ${plan.totalPasses} pas · ${Math.floor(pct)}%`
+                : `Dagens pas · ${plan.totalPasses} pas · ${Math.floor(pct)}%`;
+
+            if (timelineNowMarkerEl) {
+                if (secOfDay >= plan.startSec && secOfDay <= plan.endSec) {
+                    timelineNowMarkerEl.style.left = `${pct.toFixed(2)}%`;
+                    timelineNowMarkerEl.classList.add('is-visible');
+                } else {
+                    timelineNowMarkerEl.classList.remove('is-visible');
+                }
+            }
+
+            timelineDomBlocks.forEach(({ blk, seg, fill }) => {
+                if (secOfDay >= blk.endSec) {
+                    seg.classList.remove('is-active-block');
+                    fill.style.width = '100%';
+                    fill.className = `timeline-block-fill ${blk.type === 'WORK' ? 'is-done-work' : 'is-done-break'}`;
+                } else if (secOfDay >= blk.startSec && secOfDay < blk.endSec) {
+                    const segPct = ((secOfDay - blk.startSec) / (blk.endSec - blk.startSec)) * 100;
+                    seg.classList.add('is-active-block');
+                    fill.style.width = `${Math.max(4, segPct).toFixed(1)}%`;
+                    fill.className = 'timeline-block-fill is-current';
+                } else {
+                    seg.classList.remove('is-active-block');
+                    fill.style.width = '0%';
+                    fill.className = 'timeline-block-fill';
+                }
+            });
+        }
+
+        /* =====================================================================
+           8. TIDSPLAN-BEREGNING (LIVE + SKÆRM-FORHÅNDSVISNINGER + DEMO 8s)
+           ===================================================================== */
+        function resolveSchedule(now) {
+            const day = now.getDay(); // 0 = søndag, 5 = fredag, 6 = lørdag
+            if (scheduleMode === 'friday') {
+                return { plan: PLAN_FRIDAY, isWeekend: false };
+            }
+            if (scheduleMode === 'normal') {
+                return { plan: PLAN_NORMAL, isWeekend: false };
+            }
+            // Automatisk: registrerer selv lørdag/søndag og fredag
+            if (day === 0 || day === 6) {
+                return { plan: PLAN_NORMAL, isWeekend: true };
+            }
+            if (day === 5) {
+                return { plan: PLAN_FRIDAY, isWeekend: false };
+            }
+            return { plan: PLAN_NORMAL, isWeekend: false };
+        }
+
+        function computeLiveState(now, plan, isWeekend) {
+            const dateKey = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+
+            if (isWeekend) {
+                return {
+                    key: `LIVE:${dateKey}:WEEKEND`,
+                    type: 'WEEKEND',
+                    allowBell: true,
+                    theme: 'neutral',
+                    finishedHeading: 'POMODORO AFSLUTTET',
+                    finishedMain: 'God weekend',
+                    finishedSub: 'Starter igen mandag kl. 08:45',
+                    secOfDay: 0,
+                    isWeekend: true
+                };
+            }
+
+            const secOfDay =
+                now.getHours() * 3600 +
+                now.getMinutes() * 60 +
+                now.getSeconds() +
+                now.getMilliseconds() / 1000;
+
+            const fridaySuffix = plan.isFriday ? ' · Fredagsplan' : '';
+            const endStr = formatHHMM(plan.endSec);
+
+            // 1. Før kl. 08:45 -> Neutral sand (#F3F0EE)
+            if (secOfDay < plan.startSec) {
+                const remaining = plan.startSec - secOfDay;
+                const progress = Math.max(0, Math.min(1, remaining / 3600));
+                return {
+                    key: `LIVE:${dateKey}:${plan.key}:BEFORE`,
+                    type: 'BEFORE',
+                    allowBell: true,
+                    theme: 'neutral',
+                    heading: 'AFVENTER START',
+                    interval: `08:45 – 09:10 · Pas 1 af ${plan.totalPasses}${fridaySuffix}`,
+                    nextText: 'Næste: Arbejde kl. 08:45',
+                    remainingSec: remaining,
+                    progressRatio: progress,
+                    secOfDay,
+                    isWeekend: false
+                };
+            }
+
+            // 2. Efter sluttid (11:10 fredag / 16:00 man–tors) -> Neutral sand (#F3F0EE)
+            if (secOfDay >= plan.endSec) {
+                return {
+                    key: `LIVE:${dateKey}:${plan.key}:AFTER`,
+                    type: 'AFTER',
+                    allowBell: true,
+                    theme: 'neutral',
+                    finishedHeading: 'POMODORO AFSLUTTET',
+                    finishedMain: plan.isFriday ? 'God weekend' : 'Tak for i dag',
+                    finishedSub: plan.isFriday
+                        ? 'Fredagsplanen sluttede kl. 11:10 · Opstart mandag kl. 08:45'
+                        : 'Dagens pas sluttede kl. 16:00 · Næste opstart kl. 08:45',
+                    secOfDay,
+                    isWeekend: false
+                };
+            }
+
+            // 3. Aktivt pas mellem 08:45 og sluttid
+            for (let i = 0; i < plan.blocks.length; i++) {
+                const blk = plan.blocks[i];
+                if (secOfDay >= blk.startSec && secOfDay < blk.endSec) {
+                    const dur = blk.endSec - blk.startSec;
+                    const remaining = blk.endSec - secOfDay;
+                    const nextBlk = plan.blocks[i + 1] || null;
+
+                    if (blk.type === 'WORK') {
+                        const isLast = !nextBlk;
+                        return {
+                            key: `LIVE:${dateKey}:${plan.key}:${blk.id}`,
+                            type: 'WORK',
+                            allowBell: true,
+                            theme: 'work',
+                            heading: 'ARBEJDE',
+                            interval: `${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)} · Pas ${blk.passNum} af ${blk.totalPasses}${fridaySuffix}`,
+                            nextText: isLast
+                                ? (plan.isFriday
+                                    ? `Afsluttes kl. ${endStr} · God weekend`
+                                    : `Afsluttes kl. ${endStr} · Tak for i dag`)
+                                : `Næste: Pause kl. ${formatHHMM(blk.endSec)}`,
+                            remainingSec: remaining,
+                            progressRatio: Math.max(0, Math.min(1, remaining / dur)),
+                            secOfDay,
+                            isWeekend: false
+                        };
+                    }
+
+                    // PAUSE (Blå #9CB1BE)
+                    return {
+                        key: `LIVE:${dateKey}:${plan.key}:${blk.id}`,
+                        type: 'BREAK',
+                        allowBell: true,
+                        theme: 'break',
+                        heading: 'PAUSE',
+                        interval: `${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)} · Efter pas ${blk.passNum} af ${blk.totalPasses}${fridaySuffix}`,
+                        nextText: `Næste: Arbejde kl. ${formatHHMM(blk.endSec)}`,
+                        remainingSec: remaining,
+                        progressRatio: Math.max(0, Math.min(1, remaining / dur)),
+                        secOfDay,
+                        isWeekend: false
+                    };
+                }
+            }
+
+            return {
+                key: `LIVE:${dateKey}:${plan.key}:AFTER`,
+                type: 'AFTER',
+                allowBell: true,
+                theme: 'neutral',
+                finishedHeading: 'POMODORO AFSLUTTET',
+                finishedMain: plan.isFriday ? 'God weekend' : 'Tak for i dag',
+                finishedSub: 'Næste opstart kl. 08:45',
+                secOfDay,
+                isWeekend: false
+            };
+        }
+
+        /**
+         * Beregner tilstanden for de manuelle skærm-forhåndsvisninger og Demo 8s.
+         * - Manuelle forhåndsvisninger (`work`, `break`, `before`, `after`) har `allowBell: false`
+         * - `demo8s` har `allowBell: true` og skifter løbende mellem Arbejde (8s) og Pause (8s)
+         */
+        function computePreviewOrDemoState(nowMs, plan) {
+            const elapsedSec = Math.max(0, (nowMs - viewModeStartedAt) / 1000);
+            const fridaySuffix = plan.isFriday ? ' · Fredagsplan' : '';
+
+            // Forhåndsvisning: ARBEJDE (tikkende fra 25:00)
+            if (viewMode === 'work') {
+                const blk = plan.blocks[0];
+                const cycleElapsed = elapsedSec % WORK_SEC;
+                const remaining = WORK_SEC - cycleElapsed;
+                const ratio = remaining / WORK_SEC;
+                return {
+                    key: 'PREVIEW:WORK',
+                    type: 'WORK',
+                    allowBell: false,
+                    theme: 'work',
+                    heading: 'ARBEJDE',
+                    interval: `${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)} · Pas 1 af ${plan.totalPasses}${fridaySuffix}`,
+                    nextText: `Næste: Pause kl. ${formatHHMM(blk.endSec)}`,
+                    remainingSec: remaining,
+                    progressRatio: ratio,
+                    secOfDay: blk.startSec + cycleElapsed,
+                    isWeekend: false
+                };
+            }
+
+            // Forhåndsvisning: PAUSE (tikkende fra 05:00)
+            if (viewMode === 'break') {
+                const blk = plan.blocks[1];
+                const cycleElapsed = elapsedSec % BREAK_SEC;
+                const remaining = BREAK_SEC - cycleElapsed;
+                const ratio = remaining / BREAK_SEC;
+                return {
+                    key: 'PREVIEW:BREAK',
+                    type: 'BREAK',
+                    allowBell: false,
+                    theme: 'break',
+                    heading: 'PAUSE',
+                    interval: `${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)} · Efter pas 1 af ${plan.totalPasses}${fridaySuffix}`,
+                    nextText: `Næste: Arbejde kl. ${formatHHMM(blk.endSec)}`,
+                    remainingSec: remaining,
+                    progressRatio: ratio,
+                    secOfDay: blk.startSec + cycleElapsed,
+                    isWeekend: false
+                };
+            }
+
+            // Forhåndsvisning: FØR START (sand-skærm, tikkende nedtælling før 08:45)
+            if (viewMode === 'before') {
+                const previewDur = 15 * 60;
+                const cycleElapsed = elapsedSec % previewDur;
+                const remaining = previewDur - cycleElapsed;
+                return {
+                    key: 'PREVIEW:BEFORE',
+                    type: 'BEFORE',
+                    allowBell: false,
+                    theme: 'neutral',
+                    heading: 'AFVENTER START',
+                    interval: `08:45 – 09:10 · Pas 1 af ${plan.totalPasses}${fridaySuffix}`,
+                    nextText: 'Næste: Arbejde kl. 08:45',
+                    remainingSec: remaining,
+                    progressRatio: remaining / previewDur,
+                    secOfDay: plan.startSec - remaining,
+                    isWeekend: false
+                };
+            }
+
+            // Forhåndsvisning: AFSLUTTET (sand-skærm efter 16:00 / fredag 11:10)
+            if (viewMode === 'after') {
+                return {
+                    key: 'PREVIEW:AFTER',
+                    type: 'AFTER',
+                    allowBell: false,
+                    theme: 'neutral',
+                    finishedHeading: 'POMODORO AFSLUTTET',
+                    finishedMain: plan.isFriday ? 'God weekend' : 'Tak for i dag',
+                    finishedSub: plan.isFriday
+                        ? 'Fredagsplanen sluttede kl. 11:10 · Opstart mandag kl. 08:45'
+                        : 'Dagens pas sluttede kl. 16:00 · Næste opstart kl. 08:45',
+                    secOfDay: plan.endSec,
+                    isWeekend: false
+                };
+            }
+
+            // DEMO 8s: Live 8-sekunders cyklus der skifter mellem Arbejde og Pause
+            // og udløser den valgte ~4-sekunders ringeklokke ved hvert skift.
+            const elapsedMs = Math.max(0, nowMs - viewModeStartedAt);
+            const stepIndex = Math.floor(elapsedMs / DEMO_STEP_MS);
+            const inStepMs = elapsedMs % DEMO_STEP_MS;
+            const remainingSec = Math.max(0, (DEMO_STEP_MS - inStepMs) / 1000);
+            const ratio = Math.max(0, Math.min(1, remainingSec / (DEMO_STEP_MS / 1000)));
+            const isWorkStep = stepIndex % 2 === 0;
+            const passCycle = (Math.floor(stepIndex / 2) % (plan.totalPasses - 1)) + 1;
+
+            if (isWorkStep) {
+                const blk = plan.blocks.find((b) => b.type === 'WORK' && b.passNum === passCycle) || plan.blocks[0];
+                const simSec = blk.startSec + (1 - ratio) * (blk.endSec - blk.startSec);
+                viewBadgeTextEl.textContent = 'Demo 8s · Arbejde';
+                return {
+                    key: `DEMO8S:${viewModeStartedAt}:${stepIndex}`,
+                    type: 'WORK',
+                    allowBell: true,
+                    theme: 'work',
+                    heading: 'ARBEJDE',
+                    interval: `${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)} · Pas ${blk.passNum} af ${plan.totalPasses}${fridaySuffix}`,
+                    nextText: `Næste: Pause kl. ${formatHHMM(blk.endSec)}`,
+                    remainingSec,
+                    progressRatio: ratio,
+                    secOfDay: simSec,
+                    isWeekend: false
+                };
+            }
+
+            const blk = plan.blocks.find((b) => b.type === 'BREAK' && b.passNum === passCycle) || plan.blocks[1];
+            const simSec = blk.startSec + (1 - ratio) * (blk.endSec - blk.startSec);
+            viewBadgeTextEl.textContent = 'Demo 8s · Pause';
+            return {
+                key: `DEMO8S:${viewModeStartedAt}:${stepIndex}`,
+                type: 'BREAK',
+                allowBell: true,
+                theme: 'break',
+                heading: 'PAUSE',
+                interval: `${formatHHMM(blk.startSec)} – ${formatHHMM(blk.endSec)} · Efter pas ${blk.passNum} af ${plan.totalPasses}${fridaySuffix}`,
+                nextText: `Næste: Arbejde kl. ${formatHHMM(blk.endSec)}`,
+                remainingSec,
+                progressRatio: ratio,
+                secOfDay: simSec,
+                isWeekend: false
+            };
+        }
+
+        /* =====================================================================
+           9. HOVEDLOOP (250ms TICK)
+           ===================================================================== */
+        function tick() {
+            const now = new Date();
+            const ctx = resolveSchedule(now);
+            const plan = ctx.plan;
+
+            // 1. Sekundært analogt og digitalt ur i øverste højre hjørne (altid realtid)
+            updateCornerClock(now);
+
+            // 2. Sikr at dagstidslinjen passer til aktiv tidsplan
+            renderDayTimeline(plan);
+
+            // 3. Beregn aktuel skærmtilstand (Live, Forhåndsvisning eller Demo 8s)
+            const state = viewMode === 'live'
+                ? computeLiveState(now, plan, ctx.isWeekend)
+                : computePreviewOrDemoState(Date.now(), plan);
+
+            // 4. Ringeklokke-regel:
+            //    Ringer KUN ÉN GANG ved faktiske skift WORK -> BREAK og BREAK -> WORK
+            //    i Live-tilstand og Demo 8s (sikret mod dobbelt-ringning).
+            //    Ringer ALDRIG ved sideindlæsning, manuel forhåndsvisning, før start
+            //    eller ved dagens afslutning (11:10 / 16:00).
+            if (prevState !== null && prevState.key !== state.key) {
+                const isWorkToBreak = prevState.type === 'WORK' && state.type === 'BREAK';
+                const isBreakToWork = prevState.type === 'BREAK' && state.type === 'WORK';
+
+                if (prevState.allowBell && state.allowBell && (isWorkToBreak || isBreakToWork)) {
+                    const transitionId = `${prevState.key}=>${state.key}`;
+                    if (transitionId !== lastRungTransitionKey) {
+                        lastRungTransitionKey = transitionId;
+                        pulseCountdown();
+                        if (soundEnabled) {
+                            playSelectedBell();
+                        }
+                    }
+                } else if (state.type === 'WORK' || state.type === 'BREAK') {
+                    pulseCountdown();
+                }
+            }
+            prevState = { key: state.key, type: state.type, allowBell: state.allowBell };
+
+            // 5. Opdater baggrunds- og forgrundstema med 1.2s glidende overgang
+            if (document.body.getAttribute('data-theme') !== state.theme) {
+                document.body.setAttribute('data-theme', state.theme);
+            }
+
+            // 6. Opdater centralt indhold
+            if (state.type === 'AFTER' || state.type === 'WEEKEND') {
+                activeStageEl.classList.add('is-hidden');
+                finishedStageEl.classList.add('is-visible');
+                finishedHeadingEl.textContent = state.finishedHeading;
+                finishedMainEl.textContent = state.finishedMain;
+                finishedSubEl.textContent = state.finishedSub;
+            } else {
+                finishedStageEl.classList.remove('is-visible');
+                activeStageEl.classList.remove('is-hidden');
+
+                phaseHeadingEl.textContent = state.heading;
+                phaseIntervalEl.textContent = state.interval;
+                nextStatusEl.textContent = state.nextText;
+
+                renderCountdown(formatCountdown(state.remainingSec));
+                progressFillEl.style.width = `${(state.progressRatio * 100).toFixed(2)}%`;
+            }
+
+            // 7. Opdater dagstidslinjen nederst
+            updateDayTimeline(plan, state.secOfDay, state.isWeekend);
+        }
+
+        /* =====================================================================
+           10. KONTROLPANEL-HANDLINGER & TASTATURGENVEJE
+           ===================================================================== */
+        function setViewMode(mode) {
+            viewMode = mode;
+            viewModeStartedAt = Date.now();
+            // Nulstil sporing så skift af visning aldrig udløser en falsk ringning
+            prevState = null;
+            lastRungTransitionKey = null;
+
+            // Hvis Demo 8s vælges, lås lydkonteksten op så man kan høre klokkeskiftet
+            if (mode === 'demo8s' && !audioUnlocked) {
+                activateAudio(false);
+            }
+
+            viewButtons.forEach((btn) => {
+                btn.classList.toggle('is-active', btn.getAttribute('data-view') === mode);
+            });
+
+            if (mode === 'live') {
+                viewBadgeEl.classList.remove('is-visible');
+            } else {
+                const badgeNames = {
+                    work: 'Forhåndsvisning · Arbejde',
+                    break: 'Forhåndsvisning · Pause',
+                    before: 'Forhåndsvisning · Før start',
+                    after: 'Forhåndsvisning · Afsluttet',
+                    demo8s: 'Demo 8s · Arbejde'
+                };
+                viewBadgeTextEl.textContent = badgeNames[mode] || 'Forhåndsvisning';
+                viewBadgeEl.classList.add('is-visible');
+            }
+
+            tick();
+
+            const toastNames = {
+                live: 'Visning: Live realtidsplan',
+                work: 'Forhåndsviser: Arbejde (25:00)',
+                break: 'Forhåndsviser: Pause (05:00)',
+                before: 'Forhåndsviser: Før start (sand)',
+                after: 'Forhåndsviser: Afsluttet (sand)',
+                demo8s: 'Demo 8s startet · Skifter Arbejde ↔ Pause med ringeklokke'
+            };
+            showToast(toastNames[mode] || 'Visning opdateret');
+        }
+
+        function onScheduleChange(value) {
+            scheduleMode = value;
+            // Nulstil sporing så manuelt planskift aldrig udløser klokke
+            prevState = null;
+            tick();
+
+            const notices = {
+                auto: 'Tidsplan: Automatisk (Man–Tors 16:00 · Fredag 11:10)',
+                normal: 'Tidsplan: Normal (08:45 – 16:00)',
+                friday: 'Tidsplan: Fredag (08:45 – 11:10)'
+            };
+            showToast(notices[value] || 'Tidsplan opdateret');
+        }
+
+        function toggleFullscreen() {
+            try {
+                if (!document.fullscreenElement) {
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(() => {
+                            showToast('Tryk F11 for fuld skærm i denne browser.');
+                        });
+                    } else {
+                        showToast('Tryk F11 for fuld skærm.');
+                    }
+                } else if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                }
+            } catch (_) {
+                showToast('Tryk F11 for fuld skærm.');
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            btnFullscreenLabelEl.textContent = document.fullscreenElement
+                ? 'Afslut fuld skærm (F)'
+                : 'Fuld skærm (F)';
+        });
+
+        function setPanelHidden(hidden) {
+            panelHidden = hidden;
+            controlDockEl.classList.toggle('is-hidden', panelHidden);
+            dayTimelineEl.classList.toggle('panel-is-hidden', panelHidden);
+            revealCornerEl.classList.toggle('is-active', panelHidden);
+
+            if (panelHidden) {
+                showToast('Panel skjult · Tryk H eller før musen til nederste højre hjørne');
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+            if (e.key === 'h' || e.key === 'H') {
+                setPanelHidden(!panelHidden);
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullscreen();
+            } else if (e.key === 'm' || e.key === 'M') {
+                toggleSound();
+            }
+        });
+
+        /* =====================================================================
+           11. HJÆLPEFUNKTIONER & OPSTART
+           ===================================================================== */
+        function pad2(num) {
+            return String(Math.floor(num)).padStart(2, '0');
+        }
+
+        function formatHHMM(sec) {
+            const h = Math.floor(sec / 3600) % 24;
+            const m = Math.floor((sec % 3600) / 60);
+            return `${pad2(h)}:${pad2(m)}`;
+        }
+
+        function formatCountdown(secondsLeft) {
+            const total = Math.max(0, Math.ceil(secondsLeft));
+            const h = Math.floor(total / 3600);
+            const m = Math.floor((total % 3600) / 60);
+            const s = total % 60;
+            if (h > 0) {
+                return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+            }
+            return `${pad2(m)}:${pad2(s)}`;
+        }
+
+        function showToast(message) {
+            toastEl.textContent = message;
+            toastEl.classList.add('is-visible');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toastEl.classList.remove('is-visible');
+            }, 2600);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initAnalogClock();
+            loadPreferences();
+            updateSoundUI();
+            tick();
+            setInterval(tick, 250);
+        });
+    </script>
+</body>
+</html>
